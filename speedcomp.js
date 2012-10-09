@@ -2,7 +2,7 @@
 
 var fs   = require('fs'),
     exec = require('child_process').exec;
-    cv   = require('./node-opencv/lib/opencv');
+    png  = require('png-js');
     argv = require('optimist').usage('Usage: $0 -i inputfolder -oc coutputfolder -oj joutputfolder')
                               .demand(['i','oc','oj'])
                               .argv;
@@ -49,7 +49,7 @@ function removejsoutput(callback){
 function execstep(func, pathin, pathout, files, start, callback){
   while(running < limit && files.length > 0) {
     running++;
-    console.log(running);
+    //console.log(running);
     var file = files.shift();
     func(pathin, pathout, file, function(err) {
       if (err)
@@ -76,11 +76,7 @@ function singlec(pathin, pathout, file, callback) {
 }
 
 function singlejs(pathin, pathout, file, callback) {
-  cv.readImage(pathin + '/' + file, function(err, im){
-    if (err)
-      throw err;
-    //im.convertGrayscale();
-    //im.save(pathout + '/' + file);
+  png.decode(pathin + '/' + file, function(pixels) {
     callback();
   });
 }
