@@ -12,6 +12,9 @@ var express = require('express'),
     serverutils = require('../common/descr/server-util.js'),
     images = require('../common/descr/image-library.js').Images;
 
+var getGray,
+    getGauss;
+
 if (cluster.isMaster) {
   require('os').cpus().forEach(function() {
     cluster.fork();
@@ -34,13 +37,9 @@ if (cluster.isMaster) {
   app.listen(port);
   console.log('cwrapper server running on http://' + host + ':' + port);
 
-  /***    routing    ***/
-
-  app.get(/^\/grays\/(\d+)$/, getGray);
-
   /***    handlers    ***/
 
-  function getGray(req, res, next) {
+  getGray = function(req, res, next) {
     var img = images.get(req.params[0]);
     if (img) {
       var resultname = '../tmp/' + 'grays_' + img.id + '.' + img.extension;
@@ -55,5 +54,27 @@ if (cluster.isMaster) {
       res.header('Link','</grays>; rel="index"');
       res.send('', 404);
     }
-  }
+  };
+  
+  getGauss = function(req, res, next) {
+    var img = images.get(req.params[0]);
+    if (img) {
+      var resultname = '../tmp/' + 'grays_' + img.id + '.' + img.extension;
+      exec('../alg/Gaussian/Gaussian -i ' + img.fileName + ' -o ' + resultname, function(err, stdout, stderr){
+        if (err) throw err;
+        serverutils.respond.withFile(res, resultname, images.exts_getconttype(img.extension), null, function(err){
+          fs.unlink(resultname);
+        });
+      });
+    }
+    else {
+      res.header('Link','</gauss>; rel="index"');
+      res.send('', 404);
+    }
+  };
+  
+  /***    routing    ***/
+
+  app.get(/^\/grays\/(\d+)$/, getGray);
+  app.get(/^\/gauss\/(\d+)$/, getGauss);
 }
