@@ -9,7 +9,7 @@ var running = 0,
     limit   = 200;
 var urls = [];
 
-var steps = [createlist, grayb];
+var steps = [createlist, grayjs, createlist, grayc, createlist, grayb, createlist, gaussjs, createlist, gaussc, createlist, gaussb];
 executeSteps();
 
 function executeSteps() {
@@ -35,30 +35,43 @@ function createlist(callback){
 }
 
 function grayjs(callback){
-  console.log('Executing native js code (pngjs)');
+  console.log('Executing gray native js code');
   execstep(graysinglejs, new Date(), function(){callback();});
 }
 
+function gaussjs(callback){
+  console.log('Executing gauss native js code');
+  execstep(gausssinglejs, new Date(), function(){callback();});
+}
+
 function grayc(callback){
-  console.log('Executing wrapped c++ code');
+  console.log('Executing gray wrapped c++ code');
   execstep(graysinglec, new Date(), function(){callback();});
 }
 
+function gaussc(callback){
+  console.log('Executing gauss wrapped c++ code');
+  execstep(gausssinglec, new Date(), function(){callback();});
+}
+
 function grayb(callback){
-  console.log('Executing binded c++ code');
+  console.log('Executing gray binded c++ code');
   execstep(graysingleb, new Date(), function(){callback();});
+}
+
+function gaussb(callback){
+  console.log('Executing gauss binded c++ code');
+  execstep(gaussingleb, new Date(), function(){callback();});
 }
 
 function execstep(func, start, callback){
   while(running < limit && urls.length > 0) {
     running++;
-    //console.log(running);
     var url = urls.shift();
     func(url, function(err) {
       if (err)
         throw err;
       running--;
-      //console.log(running);
       if(urls.length > 0) {
         execstep(func, start, callback);
       }
@@ -79,6 +92,14 @@ function graysinglejs(url, callback) {
   });
 }
 
+function gausssinglejs(url, callback) {
+  request.get('http://localhost:9001/gauss/' + url, function(err, resp, body) {
+    if (err)
+      throw err;
+    callback();
+  });
+}
+
 function graysinglec(url, callback) {
   request.get('http://localhost:9002/grays/' + url, function(err, resp, body) {
     if (err)
@@ -87,8 +108,24 @@ function graysinglec(url, callback) {
   });
 }
 
+function gaussinglec(url, callback) {
+  request.get('http://localhost:9002/gauss/' + url, function(err, resp, body) {
+    if (err)
+      throw err;
+    callback();
+  });
+}
+
 function graysingleb(url, callback) {
   request.get('http://localhost:9003/grays/' + url, function(err, resp, body) {
+    if (err)
+      throw err;
+    callback();
+  });
+}
+
+function gaussingleb(url, callback) {
+  request.get('http://localhost:9003/gauss/' + url, function(err, resp, body) {
     if (err)
       throw err;
     callback();
