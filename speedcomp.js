@@ -25,7 +25,7 @@ function executeSteps() {
 
 function createlist(callback){
   console.log('Creating url list');
-  for (var i = 0; i < 1334; i++) {
+  for (var i = 1; i < 1338; i++) {
     var url = i + "";
     while (url.length < 5)
       url = "0" + url;
@@ -61,7 +61,7 @@ function grayb(callback){
 
 function gaussb(callback){
   console.log('Executing gauss binded c++ code');
-  execstep(gaussingleb, new Date(), function(){callback();});
+  execstep(gausssingleb, new Date(), function(){callback();});
 }
 
 function execstep(func, start, callback){
@@ -86,8 +86,10 @@ function execstep(func, start, callback){
 
 function graysinglejs(url, callback) {
   request.get('http://localhost:9001/grays/' + url, function(err, resp, body) {
-    if (err)
+    if (err) {
+      console.log(url);
       throw err;
+    }
     callback();
   });
 }
@@ -108,7 +110,7 @@ function graysinglec(url, callback) {
   });
 }
 
-function gaussinglec(url, callback) {
+function gausssinglec(url, callback) {
   request.get('http://localhost:9002/gauss/' + url, function(err, resp, body) {
     if (err)
       throw err;
@@ -124,7 +126,7 @@ function graysingleb(url, callback) {
   });
 }
 
-function gaussingleb(url, callback) {
+function gausssingleb(url, callback) {
   request.get('http://localhost:9003/gauss/' + url, function(err, resp, body) {
     if (err)
       throw err;

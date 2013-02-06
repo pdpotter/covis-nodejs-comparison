@@ -40,15 +40,14 @@ if (cluster.isMaster) {
     var img = req.params[0];
     // get png
     http.get('http://127.0.0.1:9000/' + img + '.png', function(serverres) {
-      var rawdata = [];
+      var rawdata = new Buffer(Number(serverres.headers['content-length']));
+      var offset = 0;
       serverres.on('data',function(chunk){
-        for (var i = 0; i < chunk.length; ++i)
-        {
-          rawdata.push(chunk[i]);
-        }
+        chunk.copy(rawdata, offset);
+        offset = offset + chunk.length;
       });
       serverres.on('end', function(){
-        var src = cv.imdecode(rawdata,1);
+        var src = new cv.Mat(cv.imdecode(rawdata,1));
         var gray = new cv.Mat();
         cv.cvtColor(src, gray, cv.CV_BGR2GRAY);
         var buf = cv.imencode('.png', gray);
@@ -62,15 +61,14 @@ if (cluster.isMaster) {
     var img = req.params[0];
     // get png
     http.get('http://127.0.0.1:9000/' + img + '.png', function(serverres) {
-      var rawdata = [];
+      var rawdata = new Buffer(Number(serverres.headers['content-length']));
+      var offset = 0;
       serverres.on('data',function(chunk){
-        for (var i = 0; i < chunk.length; ++i)
-        {
-          rawdata.push(chunk[i]);
-        }
+        chunk.copy(rawdata, offset);
+        offset = offset + chunk.length;
       });
       serverres.on('end', function(){
-        var src = cv.imdecode(rawdata,1);
+        var src = new cv.Mat(cv.imdecode(rawdata,1));
         var gauss = new cv.Mat(src.size, src.type);
         cv.GaussianBlur(src, gauss, {width: 7, height: 7}, 0);
         var buf = cv.imencode('.png', gauss);
