@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
 /***
-          Filter server
+          Native add-on server
 ***/
 
 var express = require('express'),
     cluster = require('cluster'),
+    http = require('http'),
     fs = require('fs'),
-    cv = require('../../opencv-node'),
-    serverutils = require('../common/descr/server-util.js'),
-    images = require('../common/descr/image-library.js').Images;
+    cv = require('../../opencv-node');
 
 var getGray,
     getGauss;
@@ -24,7 +23,7 @@ if (cluster.isMaster) {
 
   var app = exports.server = express(),
       port = process.env.PORT || 9003,
-      host = process.env.PORT || '127.0.0.1';
+      host = process.env.HOST || '127.0.0.1';
 
   /***    configure server    ***/
 
@@ -34,42 +33,52 @@ if (cluster.isMaster) {
   /***    start server    ***/
 
   app.listen(port);
-  console.log('onlyjs server running on http://' + host + ':' + port);
+  console.log('Native add-on server running on http://' + host + ':' + port);
 
   /***    handlers    ***/
 
   getGray = function(req, res, next) {
-    var img = images.get(req.params[0]);
-    if (img) {
-      // read png
-      var src = cv.imread(img.fileName);
-      var gray = new cv.Mat();
-      cv.cvtColor(src, gray, cv.CV_BGR2GRAY);
-      var buf = cv.imencode('.png', gray);
-      res.header('Content-Type', images.exts_getconttype(img.extension));
-      res.send(buf);
-    }
-    else {
-      res.header('Link','</grays>; rel="index"');
-      res.send('', 404);
-    }
+    var img = req.params[0];
+    // get png
+    http.get('http://127.0.0.1:9000/' + img + '.png', function(serverres) {
+      var rawdata = [];
+      serverres.on('data',function(chunk){
+        for (var i = 0; i < chunk.length; ++i)
+        {
+          rawdata.push(chunk[i]);;
+        }
+      });
+      serverres.on('end', function(){
+        var src = cv.imdecode(rawdata,1);
+        var gray = new cv.Mat();
+        cv.cvtColor(src, gray, cv.CV_BGR2GRAY);
+        var buf = cv.imencode('.png', gray);
+        res.header('Content-Type', 'image/png');
+        res.send(buf);
+      });
+    });
   };
   
   getGauss = function(req, res, next) {
-    var img = images.get(req.params[0]);
-    if (img) {
-      // read png
-      var src = cv.imread(img.fileName);
-      var gauss = new cv.Mat(src.size, src.type);
-      cv.GaussianBlur(src, gauss, {width: 7, height: 7}, 0);
-      var buf = cv.imencode('.png', gauss);
-      res.header('Content-Type', images.exts_getconttype(img.extension));
-      res.send(buf);
-    }
-    else {
-      res.header('Link','</grays>; rel="index"');
-      res.send('', 404);
-    }
+    var img = req.params[0];
+    // get png
+    http.get('http://127.0.0.1:9000/' + img + '.png', function(serverres) {
+      var rawdata = [];
+      serverres.on('data',function(chunk){
+        for (var i = 0; i < chunk.length; ++i)
+        {
+          rawdata.push(chunk[i]);;
+        }
+      });
+      serverres.on('end', function(){
+        var src = cv.imdecode(rawdata,1);
+        var gauss = new cv.Mat(src.size, src.type);
+        cv.GaussianBlur(src, gauss, {width: 7, height: 7}, 0);
+        var buf = cv.imencode('.png', gauss);
+        res.header('Content-Type', 'image/png');
+        res.send(buf);
+      });
+    });
   };
 
   /***    routing    ***/
