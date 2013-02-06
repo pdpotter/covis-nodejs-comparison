@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 /***
-          Filter server
+          Pure JavaScript server
 ***/
 
 var express = require('express'),
     cluster = require('cluster'),
+    http = require('http'),
     fs = require('fs'),
     PNG = require('pngjs').PNG,
     images = require('../common/descr/image-library.js').Images;
@@ -59,7 +60,7 @@ if (cluster.isMaster) {
 
   var app = exports.server = express(),
       port = process.env.PORT || 9001,
-      host = process.env.PORT || '127.0.0.1';
+      host = process.env.HOST || '127.0.0.1';
 
   /***    configure server    ***/
 
@@ -73,38 +74,36 @@ if (cluster.isMaster) {
   /***    start server    ***/
 
   app.listen(port);
-  console.log('onlyjs server running on http://' + host + ':' + port);
+  console.log('Pure JavaScript server running on http://' + host + ':' + port);
 
   /***    handlers    ***/
 
   getGray = function(req, res, next) {
-    var img = images.get(req.params[0]);
-    if (img) {
-      // read png
-      fs.createReadStream(img.fileName)
-        .pipe(new PNG({deflateLevel: 1, filterType: [0,1]}))
-        .on('parsed',function(){
-          ptr = 0;
-          // convert to greyscale
-          for (var y = 0; y < this.height; y++) {
-            for (var x = 0; x < this.width; x++) {
-              var ptr = (this.width * y + x) << 2;
-              var grayval = 0.299 * this.data[ptr] + 0.587 * this.data[ptr + 1] + 0.114 * this.data[ptr + 2];
-              this.data[ptr] = grayval;
-              this.data[ptr + 1] = grayval;
-              this.data[ptr + 2] = grayval;
-            }
-          }
-          // write png
-          res.header('Content-Type', images.exts_getconttype(img.extension));
-          this.pack()
-              .pipe(res);
-        });
-    }
-    else {
-      res.header('Link','</grays>; rel="index"');
+    var img = req.params[0];
+    // get png
+    var serverreq = http.get('http://127.0.0.1:9000/' + img + '.png', function(serverres) {
+      serverres.pipe(new PNG({deflateLevel: 1, filterType: [0,1]}))
+               .on('parsed',function(){
+                  ptr = 0;
+                  // convert to greyscale
+                  for (var y = 0; y < this.height; y++) {
+                    for (var x = 0; x < this.width; x++) {
+                      var ptr = (this.width * y + x) << 2;
+                      var grayval = 0.299 * this.data[ptr] + 0.587 * this.data[ptr + 1] + 0.114 * this.data[ptr + 2];
+                      this.data[ptr] = grayval;
+                      this.data[ptr + 1] = grayval;
+                      this.data[ptr + 2] = grayval;
+                    }
+                  }
+                  // write png
+                  res.header('Content-Type', images.exts_getconttype(img.extension));
+                  this.pack()
+                      .pipe(res);
+                });
+    }).on('error', function(e) {
+      console.log('problem with request: ' + e.message);
       res.send('', 404);
-    }
+    });
   };
 
   getGauss = function(req, res, next) {
