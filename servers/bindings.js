@@ -7,7 +7,6 @@
 var express = require('express'),
     cluster = require('cluster'),
     http = require('http'),
-    fs = require('fs'),
     cv = require('../../opencv-node');
 
 var getGray,
