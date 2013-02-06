@@ -7,9 +7,7 @@
 var express = require('express'),
     cluster = require('cluster'),
     http = require('http'),
-    fs = require('fs'),
-    PNG = require('pngjs').PNG,
-    images = require('../common/descr/image-library.js').Images;
+    PNG = require('pngjs').PNG;
     
 var sigma = 10,
     kernel,
@@ -81,7 +79,7 @@ if (cluster.isMaster) {
   getGray = function(req, res, next) {
     var img = req.params[0];
     // get png
-    var serverreq = http.get('http://127.0.0.1:9000/' + img + '.png', function(serverres) {
+    http.get('http://127.0.0.1:9000/' + img + '.png', function(serverres) {
       serverres.pipe(new PNG({deflateLevel: 1, filterType: [0,1]}))
                .on('parsed',function(){
                   ptr = 0;
@@ -96,59 +94,51 @@ if (cluster.isMaster) {
                     }
                   }
                   // write png
-                  res.header('Content-Type', images.exts_getconttype(img.extension));
+                  res.header('Content-Type', 'image/png');
                   this.pack()
                       .pipe(res);
                 });
-    }).on('error', function(e) {
-      console.log('problem with request: ' + e.message);
-      res.send('', 404);
     });
   };
 
   getGauss = function(req, res, next) {
-    var img = images.get(req.params[0]);
-    if (img) {
-      // read png
-      fs.createReadStream(img.fileName)
-        .pipe(new PNG({deflateLevel: 1, filterType: [0,1]}))
-        .on('parsed',function(){
-          ptr = 0;
-          // apply gaussian filter
-          var origData = new Buffer(this.data.length);
-          this.data.copy(origData);
-          var ptr;
-          for (var y = 0; y < this.height; y++) {
-            for (var x = 0; x < this.width; x++) {
-              var r = 0, g = 0, b = 0, a = 0;
-              for (j = 1 - kernelSize; j < kernelSize; ++j) {
-                if (y + j < 0 || y + j >= this.height) continue;
-                for (i = 1 - kernelSize; i < kernelSize; ++i) {
-                  if (x + i < 0 || x + i >= this.width) continue;
-                  ptr = (this.width * (y + j) + (x + i)) << 2;
-                  r += origData[ptr] * kernel[Math.abs(j)][Math.abs(i)];
-                  g += origData[ptr + 1] * kernel[Math.abs(j)][Math.abs(i)];
-                  b += origData[ptr + 2] * kernel[Math.abs(j)][Math.abs(i)];
-                  a += origData[ptr + 3] * kernel[Math.abs(j)][Math.abs(i)];
-                }
-              }
-              ptr = (this.width * y + x) << 2;
-              this.data[ptr] = r / kernelSum;
-              this.data[ptr + 1] = g / kernelSum;
-              this.data[ptr + 2] = b / kernelSum;
-              this.data[ptr + 3] = a / kernelSum;
-            }
-          }
-          // write png
-          res.header('Content-Type', images.exts_getconttype(img.extension));
-          this.pack()
-              .pipe(res);
-        });
-    }
-    else {
-      res.header('Link','</grays>; rel="index"');
-      res.send('', 404);
-    }
+    var img = req.params[0];
+    // get png
+    http.get('http://127.0.0.1:9000/' + img + '.png', function(serverres) {
+      serverres.pipe(new PNG({deflateLevel: 1, filterType: [0,1]}))
+               .on('parsed',function(){
+                 ptr = 0;
+                 // apply gaussian filter
+                 var origData = new Buffer(this.data.length);
+                 this.data.copy(origData);
+                 var ptr;
+                 for (var y = 0; y < this.height; y++) {
+                   for (var x = 0; x < this.width; x++) {
+                     var r = 0, g = 0, b = 0, a = 0;
+                     for (j = 1 - kernelSize; j < kernelSize; ++j) {
+                       if (y + j < 0 || y + j >= this.height) continue;
+                       for (i = 1 - kernelSize; i < kernelSize; ++i) {
+                         if (x + i < 0 || x + i >= this.width) continue;
+                         ptr = (this.width * (y + j) + (x + i)) << 2;
+                         r += origData[ptr] * kernel[Math.abs(j)][Math.abs(i)];
+                         g += origData[ptr + 1] * kernel[Math.abs(j)][Math.abs(i)];
+                         b += origData[ptr + 2] * kernel[Math.abs(j)][Math.abs(i)];
+                         a += origData[ptr + 3] * kernel[Math.abs(j)][Math.abs(i)];
+                       }
+                     }
+                     ptr = (this.width * y + x) << 2;
+                     this.data[ptr] = r / kernelSum;
+                     this.data[ptr + 1] = g / kernelSum;
+                     this.data[ptr + 2] = b / kernelSum;
+                     this.data[ptr + 3] = a / kernelSum;
+                   }
+                 }
+                 // write png
+                 res.header('Content-Type', 'image/png');
+                 this.pack()
+                     .pipe(res);
+               });
+    });
   };
   
   /***    routing    ***/
