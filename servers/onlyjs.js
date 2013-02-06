@@ -37,7 +37,7 @@ if (cluster.isMaster) {
       if (g < 1e-3) break;
       kernel[0].push(g);
       ++i;
-    } while (i < 7);
+    } while (i < 3);
     kernelSize = i;
     for (j = 1; j < kernelSize; ++j) {
       kernel.push([]);
