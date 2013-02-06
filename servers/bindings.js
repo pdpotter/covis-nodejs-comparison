@@ -45,7 +45,7 @@ if (cluster.isMaster) {
       serverres.on('data',function(chunk){
         for (var i = 0; i < chunk.length; ++i)
         {
-          rawdata.push(chunk[i]);;
+          rawdata.push(chunk[i]);
         }
       });
       serverres.on('end', function(){
@@ -67,7 +67,7 @@ if (cluster.isMaster) {
       serverres.on('data',function(chunk){
         for (var i = 0; i < chunk.length; ++i)
         {
-          rawdata.push(chunk[i]);;
+          rawdata.push(chunk[i]);
         }
       });
       serverres.on('end', function(){
