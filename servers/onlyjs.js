@@ -8,15 +8,9 @@ var express = require('express'),
     cluster = require('cluster'),
     http = require('http'),
     PNG = require('pngjs').PNG;
-    
-var sigma = 10,
-    kernel,
-    kernelSize,
-    kernelSum;
-    
+
 var getGray,
-    getGauss,
-    buildKernel;
+    getGauss;
 
 if (cluster.isMaster) {
   require('os').cpus().forEach(function() {
@@ -26,33 +20,7 @@ if (cluster.isMaster) {
 
   /***    helper functions    ***/
 
-  buildKernel = function() {
-    var ss = sigma * sigma;
-    var factor = 2 * Math.PI * ss;
-    kernel = [];
-    kernel.push([]);
-    var i = 0, j, g;
-    do {
-      g = Math.exp(-(i * i) / (2 * ss)) / factor;
-      if (g < 1e-3) break;
-      kernel[0].push(g);
-      ++i;
-    } while (i < 3);
-    kernelSize = i;
-    for (j = 1; j < kernelSize; ++j) {
-      kernel.push([]);
-      for (i = 0; i < kernelSize; ++i) {
-        g = Math.exp(-(i * i + j * j) / (2 * ss)) / factor;
-        kernel[j].push(g);
-      }
-    }
-    kernelSum = 0;
-    for (j = 1 - kernelSize; j < kernelSize; ++j) {
-      for (i = 1 - kernelSize; i < kernelSize; ++i) {
-        kernelSum += kernel[Math.abs(j)][Math.abs(i)];
-      }
-    }
-  };
+ 
 
   /***    create server    ***/
 
@@ -64,10 +32,6 @@ if (cluster.isMaster) {
 
   app.use(express.methodOverride());
   app.use(express.errorHandler());
-  
-  /***    build gaussian kernel ***/
-  
-  buildKernel();
 
   /***    start server    ***/
 
@@ -107,32 +71,91 @@ if (cluster.isMaster) {
     http.get('http://127.0.0.1:9000/' + img + '.png', function(serverres) {
       serverres.pipe(new PNG({deflateLevel: 1, filterType: [0,1]}))
                .on('parsed',function(){
-                 ptr = 0;
                  // apply gaussian filter
-                 var origData = new Buffer(this.data.length);
-                 this.data.copy(origData);
-                 var ptr;
-                 for (var y = 0; y < this.height; y++) {
-                   for (var x = 0; x < this.width; x++) {
-                     var r = 0, g = 0, b = 0, a = 0;
-                     for (j = 1 - kernelSize; j < kernelSize; ++j) {
-                       if (y + j < 0 || y + j >= this.height) continue;
-                       for (i = 1 - kernelSize; i < kernelSize; ++i) {
-                         if (x + i < 0 || x + i >= this.width) continue;
-                         ptr = (this.width * (y + j) + (x + i)) << 2;
-                         r += origData[ptr] * kernel[Math.abs(j)][Math.abs(i)];
-                         g += origData[ptr + 1] * kernel[Math.abs(j)][Math.abs(i)];
-                         b += origData[ptr + 2] * kernel[Math.abs(j)][Math.abs(i)];
-                         a += origData[ptr + 3] * kernel[Math.abs(j)][Math.abs(i)];
-                       }
-                     }
-                     ptr = (this.width * y + x) << 2;
-                     this.data[ptr] = r / kernelSum;
-                     this.data[ptr + 1] = g / kernelSum;
-                     this.data[ptr + 2] = b / kernelSum;
-                     this.data[ptr + 3] = a / kernelSum;
-                   }
-                 }
+                 var width = this.width;
+                 var width4 = width << 2;
+                 var height = this.height;
+                 
+                 // compute coefficients as a function of sigma = 1.3
+                 var q = 3.97156 - 4.14554 * Math.sqrt(1.0 - 0.26891 * 1.3);
+                 
+                 //compute b0, b1, b2, and b3
+                 var qq = q * q;
+                 var qqq = qq * q;
+                 var b0 = 1.57825 + (2.44413 * q) + (1.4281 * qq ) + (0.422205 * qqq);
+                 var b1 = ((2.44413 * q) + (2.85619 * qq) + (1.26661 * qqq)) / b0;
+                 var b2 = (-((1.4281 * qq) + (1.26661 * qqq))) / b0;
+                 var b3 = (0.422205 * qqq) / b0;
+                 var bigB = 1.0 - (b1 + b2 + b3);
+                 
+                 // horizontal
+                 for (var c = 0; c < 3; c++) {
+                   for (var y = 0; y < height; y++) {
+                     // forward 
+                     var index = y * width4 + c;
+                     var indexLast = y * width4 + 4 * (width - 1) + c;
+                     var pixel = this.data[index];
+                     var ppixel = pixel;
+                     var pppixel = ppixel;
+                     var ppppixel = pppixel;
+                     for (; index <= indexLast; index += 4) {
+                       pixel = bigB * this.data[index] + b1 * ppixel + b2 * pppixel + b3 * ppppixel;
+                       this.data[index] = pixel; 
+                       ppppixel = pppixel;
+                       pppixel = ppixel;
+                       ppixel = pixel;
+                    }
+                    // backward
+                    index = y * width4 + 4 * (width - 1) + c;
+                    indexLast = y * width4 + c;
+                    pixel = this.data[index];
+                    ppixel = pixel;
+                    pppixel = ppixel;
+                    ppppixel = pppixel;
+                    for (; index >= indexLast; index -= 4) {
+                      pixel = bigB * this.data[index] + b1 * ppixel + b2 * pppixel + b3 * ppppixel;
+                      this.data[index] = pixel;
+                      ppppixel = pppixel;
+                      pppixel = ppixel;
+                      ppixel = pixel;
+                    }
+                  }
+                }
+                
+                // vertical
+                for (var c = 0; c < 3; c++) {
+                  for (var x = 0; x < width; x++) {
+                    // forward 
+                    var index = 4 * x + c;
+                    var indexLast = (height - 1) * width4 + 4 * x + c;
+                    var pixel = this.data[index];
+                    var ppixel = pixel;
+                    var pppixel = ppixel;
+                    var ppppixel = pppixel;
+                    for (; index <= indexLast; index += width4) {
+                      pixel = bigB * this.data[index] + b1 * ppixel + b2 * pppixel + b3 * ppppixel;
+                      this.data[index] = pixel;
+                      ppppixel = pppixel;
+                      pppixel = ppixel;
+                      ppixel = pixel;
+                    } 
+                    // backward
+                    index = (height - 1) * width4 + 4 * x + c;
+                    indexLast = 4 * x + c;
+                    pixel = this.data[index];
+                    ppixel = pixel;
+                    pppixel = ppixel;
+                    ppppixel = pppixel;
+                    for (; index >= indexLast; index -= width4) {
+                      pixel = bigB * this.data[index] + b1 * ppixel + b2 * pppixel + b3 * ppppixel;
+                      this.data[index] = pixel;
+                      ppppixel = pppixel;
+                      pppixel = ppixel;
+                      ppixel = pixel;
+                    }
+                  }
+                } 
+                 
                  // write png
                  res.header('Content-Type', 'image/png');
                  this.pack()
