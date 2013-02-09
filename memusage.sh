@@ -9,7 +9,7 @@ sleep 1
 #./onlyjs.js &
 #./cwrapper.js &
 #./bindings.js &
-./bindings.js &
+./cwrapper.js &
 sleep 1
 
 cd ..
@@ -27,3 +27,5 @@ done
 
 pkill node
 pkill nodejs
+
+sleep 10
