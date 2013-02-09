@@ -7,7 +7,8 @@
 var express = require('express'),
     cluster = require('cluster'),
     http = require('http'),
-    PNG = require('pngjs').PNG;
+    PNG = require('pngjs').PNG,
+    jsfeat = require('jsfeat');
 
 var getGray,
     getGauss;
@@ -46,16 +47,11 @@ if (cluster.isMaster) {
     http.get('http://127.0.0.1:9000/' + img + '.png', function(serverres) {
       serverres.pipe(new PNG({deflateLevel: 1, filterType: [0,1]}))
                .on('parsed',function(){
-                  ptr = 0;
-                  // convert to greyscale
-                  for (var y = 0; y < this.height; y++) {
-                    for (var x = 0; x < this.width; x++) {
-                      var ptr = (this.width * y + x) << 2;
-                      var grayval = 0.299 * this.data[ptr] + 0.587 * this.data[ptr + 1] + 0.114 * this.data[ptr + 2];
-                      this.data[ptr] = grayval;
-                      this.data[ptr + 1] = grayval;
-                      this.data[ptr + 2] = grayval;
-                    }
+                  var i,j;
+                  var dst = new Buffer(this.data.length/4);
+                  jsfeat.imgproc.grayscale(this.data, dst);
+                  for (i = j = 0; i < dst.length; i++, j += 4) {
+                    this.data[j] = this.data[j + 1] = this.data[j + 2] = dst[i];
                   }
                   // write png
                   res.header('Content-Type', 'image/png');
@@ -71,96 +67,32 @@ if (cluster.isMaster) {
     http.get('http://127.0.0.1:9000/' + img + '.png', function(serverres) {
       serverres.pipe(new PNG({deflateLevel: 1, filterType: [0,1]}))
                .on('parsed',function(){
-                 // apply gaussian filter
-                 var width = this.width;
-                 var width4 = width << 2;
-                 var height = this.height;
-                 
-                 // compute coefficients as a function of sigma = 1.3
-                 var q = 3.97156 - 4.14554 * Math.sqrt(1.0 - 0.26891 * 1.3);
-                 
-                 //compute b0, b1, b2, and b3
-                 var qq = q * q;
-                 var qqq = qq * q;
-                 var b0 = 1.57825 + (2.44413 * q) + (1.4281 * qq ) + (0.422205 * qqq);
-                 var b1 = ((2.44413 * q) + (2.85619 * qq) + (1.26661 * qqq)) / b0;
-                 var b2 = (-((1.4281 * qq) + (1.26661 * qqq))) / b0;
-                 var b3 = (0.422205 * qqq) / b0;
-                 var bigB = 1.0 - (b1 + b2 + b3);
-                 
-                 // horizontal
-                 for (var c = 0; c < 3; c++) {
-                   for (var y = 0; y < height; y++) {
-                     // forward 
-                     var index = y * width4 + c;
-                     var indexLast = y * width4 + 4 * (width - 1) + c;
-                     var pixel = this.data[index];
-                     var ppixel = pixel;
-                     var pppixel = ppixel;
-                     var ppppixel = pppixel;
-                     for (; index <= indexLast; index += 4) {
-                       pixel = bigB * this.data[index] + b1 * ppixel + b2 * pppixel + b3 * ppppixel;
-                       this.data[index] = pixel; 
-                       ppppixel = pppixel;
-                       pppixel = ppixel;
-                       ppixel = pixel;
-                    }
-                    // backward
-                    index = y * width4 + 4 * (width - 1) + c;
-                    indexLast = y * width4 + c;
-                    pixel = this.data[index];
-                    ppixel = pixel;
-                    pppixel = ppixel;
-                    ppppixel = pppixel;
-                    for (; index >= indexLast; index -= 4) {
-                      pixel = bigB * this.data[index] + b1 * ppixel + b2 * pppixel + b3 * ppppixel;
-                      this.data[index] = pixel;
-                      ppppixel = pppixel;
-                      pppixel = ppixel;
-                      ppixel = pixel;
-                    }
+                  var i,j;
+                  var red = new jsfeat.matrix_t(this.width, this.height, jsfeat.U8_t | jsfeat.C1_t);
+                  var green = new jsfeat.matrix_t(this.width, this.height, jsfeat.U8_t | jsfeat.C1_t);
+                  var blue = new jsfeat.matrix_t(this.width, this.height, jsfeat.U8_t | jsfeat.C1_t);
+                  for (i = j = 0; i < this.data.length; i += 4, j++) {
+                    red.data[j]   = this.data[i];
+                    green.data[j] = this.data[i + 1];
+                    blue.data[j]  = this.data[i + 2];
                   }
-                }
-                
-                // vertical
-                for (var c = 0; c < 3; c++) {
-                  for (var x = 0; x < width; x++) {
-                    // forward 
-                    var index = 4 * x + c;
-                    var indexLast = (height - 1) * width4 + 4 * x + c;
-                    var pixel = this.data[index];
-                    var ppixel = pixel;
-                    var pppixel = ppixel;
-                    var ppppixel = pppixel;
-                    for (; index <= indexLast; index += width4) {
-                      pixel = bigB * this.data[index] + b1 * ppixel + b2 * pppixel + b3 * ppppixel;
-                      this.data[index] = pixel;
-                      ppppixel = pppixel;
-                      pppixel = ppixel;
-                      ppixel = pixel;
-                    } 
-                    // backward
-                    index = (height - 1) * width4 + 4 * x + c;
-                    indexLast = 4 * x + c;
-                    pixel = this.data[index];
-                    ppixel = pixel;
-                    pppixel = ppixel;
-                    ppppixel = pppixel;
-                    for (; index >= indexLast; index -= width4) {
-                      pixel = bigB * this.data[index] + b1 * ppixel + b2 * pppixel + b3 * ppppixel;
-                      this.data[index] = pixel;
-                      ppppixel = pppixel;
-                      pppixel = ppixel;
-                      ppixel = pixel;
-                    }
+                  var gred = new jsfeat.matrix_t(this.width, this.height, jsfeat.U8_t | jsfeat.C1_t);
+                  var ggreen = new jsfeat.matrix_t(this.width, this.height, jsfeat.U8_t | jsfeat.C1_t);
+                  var gblue = new jsfeat.matrix_t(this.width, this.height, jsfeat.U8_t | jsfeat.C1_t);
+                  jsfeat.imgproc.gaussian_blur(red, gred, 7);
+                  jsfeat.imgproc.gaussian_blur(green, ggreen, 7);
+                  jsfeat.imgproc.gaussian_blur(blue, gblue, 7);
+                  for (i = j = 0; i < this.data.length; i += 4, j++) {
+                    this.data[i]     = gred.data[j];
+                    this.data[i + 1] = ggreen.data[j];
+                    this.data[i + 2] = gblue.data[j];
                   }
-                } 
+                  // write png
+                  res.header('Content-Type', 'image/png');
+                  this.pack()
+                      .pipe(res);
+                });
                  
-                 // write png
-                 res.header('Content-Type', 'image/png');
-                 this.pack()
-                     .pipe(res);
-               });
     });
   };
   
