@@ -6,9 +6,6 @@ cd servers
 ./images.js &
 sleep 1
 
-#./onlyjs.js &
-#./cwrapper.js &
-#./bindings.js &
 ./commandplease &
 sleep 1
 
