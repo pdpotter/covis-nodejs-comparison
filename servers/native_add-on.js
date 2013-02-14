@@ -91,7 +91,7 @@ if (cluster.isMaster) {
         offset = offset + chunk.length;
       });
       serverres.on('end', function(){
-        // gaussian blur filter
+        // Gaussian blur filter
         var src = new cv.Mat(cv.imdecode(rawdata,1));
         var gauss = new cv.Mat(src.size, src.type);
         cv.GaussianBlur(src, gauss, {width: 7, height: 7}, 0);
