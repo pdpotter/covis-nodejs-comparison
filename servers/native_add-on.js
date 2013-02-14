@@ -72,7 +72,7 @@ if (cluster.isMaster) {
         // send result
         res.header('Content-Type', 'image/png');
         res.send(buf);
-        // manual garbage collection if wanted
+        // manual garbage collection if requested
         if (process.argv[2] === "gc") {
           global.gc();
         }
@@ -99,7 +99,7 @@ if (cluster.isMaster) {
         // send result
         res.header('Content-Type', 'image/png');
         res.send(buf);
-        // manual garbage collection if wanted
+        // manual garbage collection if requested
         if (process.argv[2] === "gc") {
           global.gc();
         }
