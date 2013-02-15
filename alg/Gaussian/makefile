@@ -1,5 +1,5 @@
 #compiler
-CPP := g++ -g
+CPP := g++ -O3
 
 #linker
 LD := g++
