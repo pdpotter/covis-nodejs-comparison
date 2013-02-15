@@ -10,7 +10,6 @@ var running = 0,
     limit   = 200;
 var urls = [];
 
-//var steps = [createlist, grayjs, createlist, grayc, createlist, grayb, createlist, gaussjs, createlist, gaussc, createlist, gaussb];
 var steps = [commandsplease];
 executeSteps();
 
@@ -38,34 +37,34 @@ function createlist(callback){
   callback();
 }
 
-function grayjs(callback){
-  console.log('Executing gray native js code');
-  execstep(graysinglejs, function(){callback();});
+function graypj(callback){
+  console.log('Executing gray pure javascript code');
+  execstep(graysinglepj, function(){callback();});
 }
 
-function gaussjs(callback){
-  console.log('Executing gauss native js code');
-  execstep(gausssinglejs, function(){callback();});
+function gausspj(callback){
+  console.log('Executing gauss pure javascript code');
+  execstep(gausssinglepj, function(){callback();});
 }
 
-function grayc(callback){
-  console.log('Executing gray wrapped c++ code');
-  execstep(graysinglec, function(){callback();});
+function grayepc(callback){
+  console.log('Executing gray external program call code');
+  execstep(graysingleepc, function(){callback();});
 }
 
-function gaussc(callback){
-  console.log('Executing gauss wrapped c++ code');
-  execstep(gausssinglec, function(){callback();});
+function gaussepc(callback){
+  console.log('Executing gauss external program call code');
+  execstep(gausssingleepc, function(){callback();});
 }
 
-function grayb(callback){
-  console.log('Executing gray binded c++ code');
-  execstep(graysingleb, function(){callback();});
+function graynao(callback){
+  console.log('Executing gray native add-on code');
+  execstep(graysinglenao, function(){callback();});
 }
 
-function gaussb(callback){
-  console.log('Executing gauss binded c++ code');
-  execstep(gausssingleb, function(){callback();});
+function gaussnao(callback){
+  console.log('Executing gauss native add-on code');
+  execstep(gausssinglenao, function(){callback();});
 }
 
 function execstep(func, callback){
@@ -86,7 +85,7 @@ function execstep(func, callback){
   }
 }
 
-function graysinglejs(url, startpart, callback) {
+function graysinglepj(url, startpart, callback) {
   request.get('http://localhost:9001/grays/' + url, function(err, resp, body) {
     if (err)
       throw err;
@@ -96,7 +95,7 @@ function graysinglejs(url, startpart, callback) {
   });
 }
 
-function gausssinglejs(url, startpart, callback) {
+function gausssinglepj(url, startpart, callback) {
   request.get('http://localhost:9001/gauss/' + url, function(err, resp, body) {
     if (err)
       throw err;
@@ -106,7 +105,7 @@ function gausssinglejs(url, startpart, callback) {
   });
 }
 
-function graysinglec(url, startpart, callback) {
+function graysingleepc(url, startpart, callback) {
   request.get('http://localhost:9002/grays/' + url, function(err, resp, body) {
     if (err)
       throw err;
@@ -116,7 +115,7 @@ function graysinglec(url, startpart, callback) {
   });
 }
 
-function gausssinglec(url, startpart, callback) {
+function gausssingleepc(url, startpart, callback) {
   request.get('http://localhost:9002/gauss/' + url, function(err, resp, body) {
     if (err)
       throw err;
@@ -126,7 +125,7 @@ function gausssinglec(url, startpart, callback) {
   });
 }
 
-function graysingleb(url, startpart, callback) {
+function graysinglenao(url, startpart, callback) {
   request.get('http://localhost:9003/grays/' + url, function(err, resp, body) {
     if (err)
       throw err;
@@ -136,7 +135,7 @@ function graysingleb(url, startpart, callback) {
   });
 }
 
-function gausssingleb(url, startpart, callback) {
+function gausssinglenao(url, startpart, callback) {
   request.get('http://localhost:9003/gauss/' + url, function(err, resp, body) {
     if (err)
       throw err;
